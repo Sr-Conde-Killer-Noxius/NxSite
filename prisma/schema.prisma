@@ -1,0 +1,152 @@
+  /// ------------- Configurações de datasource e cliente. -------------
+  generator client {
+    provider = "prisma-client-js"
+  }
+
+  datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+  }
+
+  /// ------------- Representa um usuário da plataforma. -------------
+  model User {
+    id     String @id @default(uuid()) // ID único do usuário.
+    email  String // Email de cadastro
+    passwd String // Senha com hash
+
+    name      String // Nome do usuário.
+    phone     String // Telefone do usuário.
+    createdAt DateTime @default(now()) // Data de criação do usuário.
+
+    // Relacionamento com permissões
+    permissions UserPermission[]
+
+    // Relacionamentos
+    groups            TelegramGroup[]   // Grupos criados pelo usuário.
+    memberships       GroupMember[]     // Grupos que o usuário participa.
+    payments          Payment[]         // Pagamentos feitos pelo usuário.  
+    tickets           Ticket[]          // Tickets 
+    ticketsResponses  TicketResponse[]  // Respostas recebidas aos ticket
+  }
+
+  model Permission {
+    id   String @id @default(uuid())
+    name String @unique
+
+    // Relação reversa
+    users UserPermission[]
+  }
+
+  model UserPermission {
+    userId       String
+    permissionId String
+
+    user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+    @@id([userId, permissionId])
+  }
+  /// ------------- Representa um grupo do Telegram listado na plataforma. -------------
+  model TelegramGroup {
+    id          String   @id @default(uuid()) // ID único do grupo.
+    name        String   @unique @default("Sem nome") // Nome do grupo
+    ownerId     String // ID relação ao DONO que criou o grupo                    
+    owner       User     @relation(fields: [ownerId], references: [id]) // Dono do grupo.
+    imageUrl    String   @default("") // URL da imagem do grupo.
+    description String   @default("") // Descrição do grupo.
+    createdAt   DateTime @default(now()) // Data de criação do grupo.
+    link        String
+
+    // ------------- Relacionamento com SubscriptionPlan -------------
+    subscriptionPlanId String?
+    subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+
+    // ------------- Relacionamento com categorias -------------
+    categoryId String?
+    category   Category? @relation(fields: [categoryId], references: [id])
+    
+    // ------------- Outros relacionamentos -------------
+    members  GroupMember[] // Usuários que participam do grupo.
+    visits   GroupVisit[] // Visitas ao grupo.
+    payments Payment[] // Pagamentos para promover o grupo.
+  }
+
+  /// ------------- Representa um plano de assinatura para destacar grupos. -------------
+  model SubscriptionPlan {
+    id       String @id @default(uuid()) // ID único do plano.
+    name     String // Nome do plano (exemplo: "Premium").
+    price    Float  @default(0.0) // Preço do plano (0 = gratuito).
+    duration Int // Duração do plano em dias.
+
+    // ------------- Relacionamento com TelegramGroup (inverso)  -------------
+    groups TelegramGroup[] // Grupos associados a este plano.
+  }
+
+  /// ------------- Representa uma categoria de grupo do Telegram. -------------
+  model Category {
+    id   String @id @default(uuid()) // ID único da categoria.
+    name String // Nome da categoria.
+
+    // ------------- Relacionamento com TelegramGroup -------------
+    groups TelegramGroup[]
+  }
+
+  /// ------------- Representa um usuário que participa de um grupo. -------------
+  model GroupMember {
+    id       String        @id @default(uuid()) // ID único da associação.
+    userId   String
+    user     User          @relation(fields: [userId], references: [id])
+    groupId  String
+    group    TelegramGroup @relation(fields: [groupId], references: [id])
+    joinedAt DateTime      @default(now()) // Data de entrada no grupo.
+  }
+
+  /// ------------- Representa uma visita a um grupo do Telegram. -------------
+  model GroupVisit {
+    id        String        @id @default(uuid()) // ID único da visita.
+    groupId   String
+    group     TelegramGroup @relation(fields: [groupId], references: [id])
+    visitedAt DateTime      @default(now()) // Data da visita.
+  }
+
+  /// ------------- Representa um pagamento feito por um usuário para promover um grupo. -------------
+  model Payment {
+    id      String        @id @default(uuid()) // ID único do pagamento.
+    userId  String
+    user    User          @relation(fields: [userId], references: [id])
+    groupId String
+    group   TelegramGroup @relation(fields: [groupId], references: [id])
+    amount  Float // Valor pago.
+    paidAt  DateTime      @default(now()) // Data do pagamento.
+  }
+
+
+  /// ------------- Representa um ticket de suporte. -------------
+  model Ticket {
+    id          String   @id @default(uuid()) // ID único do ticket.
+    userId      String   // ID do usuário que criou o ticket.
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Relacionamento com usuário.
+    subject     String   // Assunto do ticket.
+    message     String   // Mensagem inicial do ticket.
+    status      String   @default("open") // Status do ticket (open, in_progress, closed).
+    priority    String   @default("média") // Prioridade do ticket (baixa, média, alta).
+    createdAt   DateTime @default(now()) // Data de criação do ticket.
+    updatedAt   DateTime @updatedAt // Data da última atualização.
+
+    // Respostas do ticket
+    responses   TicketResponse[]
+  }
+
+
+
+  /// ------------- Representa uma resposta a um ticket. -------------
+  model TicketResponse {
+    id        String   @id @default(uuid()) // ID único da resposta.
+    ticketId  String   // ID do ticket relacionado.
+    ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade) // Relacionamento com ticket.
+    userId    String   // ID do usuário que respondeu (pode ser admin ou usuário).
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Relacionamento com usuário.
+    message   String   // Mensagem da resposta.
+    createdAt DateTime @default(now()) // Data da resposta.
+  }

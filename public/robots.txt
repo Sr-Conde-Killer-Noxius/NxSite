@@ -1,0 +1,12 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /*/admin
+
+# Host
+Host: https://3196-2804-37a4-80d-a00-34a3-eb3e-3ecf-74f6.ngrok-free.app
+
+# Sitemaps
+Sitemap: https://3196-2804-37a4-80d-a00-34a3-eb3e-3ecf-74f6.ngrok-free.app/sitemap.xml
